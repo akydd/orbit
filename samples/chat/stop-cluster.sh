@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 echo "Killing all java processes on the current TTY"
 myTTY=`tty | cut -d/ -f3`

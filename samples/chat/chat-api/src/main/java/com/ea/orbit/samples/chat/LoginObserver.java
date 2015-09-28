@@ -28,47 +28,13 @@
 
 package com.ea.orbit.samples.chat;
 
-import java.io.Serializable;
-import java.util.Date;
 
-public class ChatMessageDto implements Serializable
+import com.ea.orbit.actors.ActorObserver;
+import com.ea.orbit.actors.annotation.OneWay;
+import com.ea.orbit.concurrent.Task;
+
+public interface LoginObserver extends ActorObserver
 {
-	private static final long serialVersionUID = 1L;
-
-    public static final String TYPE = "chatMessage";
-
-	private Date when;
-    private String sender;
-    private String message;
-
-    public Date getWhen()
-    {
-        // wasteful clone just to keep code analysers happy
-        return new Date(when.getTime());
-    }
-
-    public void setWhen(final Date when)
-    {
-        this.when = new Date(when.getTime());
-    }
-
-    public String getSender()
-    {
-        return sender;
-    }
-
-    public void setSender(final String sender)
-    {
-        this.sender = sender;
-    }
-
-    public String getMessage()
-    {
-        return message;
-    }
-
-    public void setMessage(final String message)
-    {
-        this.message = message;
-    }
+    @OneWay
+    Task<Void> receiveMessage(LoginMessageDto message);
 }

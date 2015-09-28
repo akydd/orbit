@@ -65,7 +65,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         var parser = document.createElement('a');
         parser.href = window.location.href;
-        var serviceLocation = (parser.protocol=="https" ? "wss" : "ws") +"://"+parser.host+"/sample/chat/";
+        var serviceLocation = (parser.protocol=="https" ? "wss" : "ws") +"://"+parser.host+"/sample/chat";
 
         function onMessageReceived(evt) {
             //console.log("received: " + evt.data);
@@ -74,14 +74,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if(recv.user || recv.message) {
                 var msg = recv;
 				var dateString = "";
-				var date = new Date(msg.received)
+				var date = new Date(msg.received);
 				if( !isNaN(date.getTime()) )
 				{
 					dateString = date.toLocaleString();
 				}
                 var $messageLine = $(
                         '<tr><td class="date">' + dateString
-                        + '</td><td class="user">' + msg.sender
+                        + '</td><td class="user">' + msg.nickName
                         + '</td><td class="message">' + msg.message
                         + '</td></tr>');
                 $chatWindow.append($messageLine);
@@ -89,14 +89,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 $chatWindow.empty();
                 for(var i=0; i<recv.history.length; i++) {
                     var msg = recv.history[i];
-					var date = new Date(msg.received)
+					var date = new Date(msg.received);
 					if( !isNaN(date.getTime()) )
 					{
 						dateString = date.toLocaleString();
 					}
                     var $messageLine = $(
                             '<tr><td class="date">' + dateString
-                            + '</td><td class="user">' + msg.sender
+                            + '</td><td class="user">' + msg.nickName
                             + '</td><td class="message">' + msg.message
                             + '</td></tr>');
                     $chatWindow.append($messageLine);
@@ -108,8 +108,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         function sendMessage() {
             var msg = {
+                "type": "chatMessage",
                 "message": $message.val(),
-                "sender": $nickName.val()
+                "nickName": $nickName.val()
             };
             if(!wsocket) {
                 pendingMessages.push(msg);
@@ -121,16 +122,26 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             $message.val('').focus();
         }
 
+        function sendLogin() {
+            var msg = {
+                "type": "loginMessage",
+                "nickname": $nickName.val()
+            };
+            wsocket.send(JSON.stringify(msg));
+        }
+
         function connectToServer() {
             console.log("connecting to server");
-            room = $('#chatroom option:selected').val();
-            wsocket = new WebSocket(serviceLocation + room);
+            // room = $('#chatroom option:selected').val();
+            wsocket = new WebSocket(serviceLocation);
             wsocket.onmessage = onMessageReceived;
             wsocket.onclose = onClose;
             wsocket.onopen = onOpen;
         }
 
         function onOpen() {
+            sendLogin();
+
             if(pendingMessages.length > 0) {
                 var messages = pendingMessages;
                 pendingMessages = [];
@@ -156,17 +167,27 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             $nickName = $('#nickname');
             $message = $('#message');
             $chatWindow = $('#response');
+            $('.users').hide();
             $('.chat-container').hide();
+            $('.chat-rooms').hide();
             $nickName.focus();
 
             $('#enterRoom').click(function (evt) {
                 evt.preventDefault();
-                connectToServer();
                 $('.chat-container h2').text('Chat # ' + $nickName.val() + "@" + room);
-                $('.signin-form').hide();
                 $('.chat-container').show();
                 $message.focus();
             });
+
+            $('#signIn').click(function (evt) {
+                evt.preventDefault();
+                connectToServer();
+                $('.chat-container h2').text('Chat # ' + $nickName.val() + "@" + room);
+                $('.signin-form').hide();
+                $('.users').show();
+                $message.focus();
+            });
+
             $('#do-chat').submit(function (evt) {
                 evt.preventDefault();
                 sendMessage()
@@ -189,6 +210,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             <label for="nickname">Nickname</label>
             <input type="text" class="form-control" id="nickname" placeholder="Nickname">
         </div>
+
+        <div class="form-group">
+            <button class="btn btn-primary" type="submit" id="signIn">Sign in</button>
+        </div>
+    </form>
+</div>
+
+<div class="container users">
+    <div class="panel-body">
+        <table id="users" class="table">
+        </table>
+    </div>
+</div>
+
+<div class="container chat-rooms">
+    <form role="form">
+        <h2>Chat rooms</h2>
         <div class="form-group" >
             <label for="chatroom">Chatroom</label>
             <select size="1" id="chatroom" class="form-control">
@@ -198,8 +236,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 <option>fifa</option>
             </select>
         </div>
+
         <div class="form-group">
-            <button class="btn btn-primary" type="submit" id="enterRoom">Sign in</button>
+            <button class="btn btn-primary" type="submit" id="enterRoom">Enter Room</button>
         </div>
     </form>
 </div>
@@ -212,6 +251,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             <table id="response" class="table">
             </table>
         </div>
+
+        <div class="panel-body">
+            <table id="private" class="table">
+            </table>
+        </div>
+
         <fieldset>
             <legend>Enter your message..</legend>
             <div class="controls">

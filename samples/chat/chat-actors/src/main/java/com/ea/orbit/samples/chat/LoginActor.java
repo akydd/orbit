@@ -28,47 +28,52 @@
 
 package com.ea.orbit.samples.chat;
 
-import java.io.Serializable;
-import java.util.Date;
+import com.ea.orbit.actors.ObserverManager;
+import com.ea.orbit.actors.runtime.AbstractActor;
+import com.ea.orbit.concurrent.Task;
 
-public class ChatMessageDto implements Serializable
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+/**
+ * Created by akydd on 27/09/15.
+ */
+public class LoginActor extends AbstractActor<LoginActor.State> implements Login
 {
-	private static final long serialVersionUID = 1L;
-
-    public static final String TYPE = "chatMessage";
-
-	private Date when;
-    private String sender;
-    private String message;
-
-    public Date getWhen()
+    public static class State
     {
-        // wasteful clone just to keep code analysers happy
-        return new Date(when.getTime());
+        ObserverManager<LoginObserver> observers = new ObserverManager<>();
+        LinkedList<String> users = new LinkedList<>();
     }
 
-    public void setWhen(final Date when)
+    @Override
+    public Task<Void> say(final LoginMessageDto message)
     {
-        this.when = new Date(when.getTime());
+        state().users.add(message.getNickName());
+        state().observers.notifyObservers(o -> o.receiveMessage(message));
+        writeState().join();
+        return Task.done();
     }
 
-    public String getSender()
+    @Override
+    public Task<Boolean> join(final LoginObserver observer)
     {
-        return sender;
+        state().observers.addObserver(observer);
+        return writeState().thenApply(x -> true);
     }
 
-    public void setSender(final String sender)
+    @Override
+    public Task<Boolean> leave(final LoginObserver observer)
     {
-        this.sender = sender;
+        state().observers.removeObserver(observer);
+        return writeState().thenApply(x -> true);
     }
 
-    public String getMessage()
+    @Override
+    public Task<List<String>> getUsers()
     {
-        return message;
-    }
-
-    public void setMessage(final String message)
-    {
-        this.message = message;
+        final LinkedList<String> users = state().users;
+        return Task.fromValue(new ArrayList<>(users));
     }
 }

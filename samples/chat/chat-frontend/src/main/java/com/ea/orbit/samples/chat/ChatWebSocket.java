@@ -44,54 +44,89 @@ import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
 import java.io.StringReader;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
+//import java.time.ZoneId;
+//import java.time.ZonedDateTime;
+//import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 
-@ServerEndpoint("/sample/chat/{chatName}")
+@ServerEndpoint("/sample/chat")
 public class ChatWebSocket
 {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ChatWebSocket.class);
-    private Chat chat;
-    private ChatObserver observer;
+
+//    private Chat chat;
+//    private ChatObserver observer;
+    private Login login;
+    private LoginObserver loginObserver;
+    private Map<String, Session> sessions = new HashMap<>();
 
     @OnOpen
     public void onWebSocketConnect(Session session)
     {
-        chat = Actor.getReference(Chat.class, session.getPathParameters().get("chatName"));
-        observer = new ChatObserver()
+        login = Actor.getReference(Login.class);
+        loginObserver = new LoginObserver()
         {
             @Override
-            public Task<Void> receiveMessage(final ChatMessageDto message)
+            public Task<Void> receiveMessage(final LoginMessageDto message)
             {
                 JsonObject jsonObject = Json.createObjectBuilder()
-                        .add("message", message.getMessage())
-                        .add("sender", message.getSender())
-                        .add("received", ZonedDateTime.ofInstant(message.getWhen().toInstant(), ZoneId.systemDefault()).format(DateTimeFormatter.ISO_INSTANT))
+                        .add("login", message.getNickName())
                         .build();
 
                 session.getAsyncRemote().sendObject(jsonObject.toString());
                 return Task.done();
             }
         };
-        chat.join(observer);
+        login.join(loginObserver);
 
-        chat.getHistory(100).thenAccept(ms -> {
-                    JsonArrayBuilder array = Json.createArrayBuilder();
-                    ms.stream().forEach(
-                            m -> array.add(
-                                    Json.createObjectBuilder()
-                                            .add("message", m.getMessage())
-                                            .add("sender", m.getSender())
-                                            .add("received", m.getWhen().toInstant().atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_INSTANT))
-                                            .build()
-                            )
-                    );
-                    session.getAsyncRemote().sendObject(
-                            Json.createObjectBuilder().add("history", array).build().toString());
-                }
-        );
+//        chat = Actor.getReference(Chat.class, session.getPathParameters().get("chatName"));
+//        observer = new ChatObserver()
+//        {
+//            @Override
+//            public Task<Void> receiveMessage(final ChatMessageDto message)
+//            {
+//                JsonObject jsonObject = Json.createObjectBuilder()
+//                        .add("message", message.getMessage())
+//                        .add("sender", message.getSender())
+//                        .add("received", ZonedDateTime.ofInstant(message.getWhen().toInstant(), ZoneId.systemDefault()).format(DateTimeFormatter.ISO_INSTANT))
+//                        .build();
+//
+//                session.getAsyncRemote().sendObject(jsonObject.toString());
+//                return Task.done();
+//            }
+//        };
+//        chat.join(observer);
+//
+//        chat.getHistory(100).thenAccept(ms -> {
+//                    JsonArrayBuilder array = Json.createArrayBuilder();
+//                    ms.stream().forEach(
+//                            m -> array.add(
+//                                    Json.createObjectBuilder()
+//                                            .add("message", m.getMessage())
+//                                            .add("sender", m.getSender())
+//                                            .add("received", m.getWhen().toInstant().atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_INSTANT))
+//                                            .build()
+//                            )
+//                    );
+//                    session.getAsyncRemote().sendObject(
+//                            Json.createObjectBuilder().add("history", array).build().toString());
+//                }
+//        );
+
+        login.getUsers().thenAccept(ms -> {
+            JsonArrayBuilder array = Json.createArrayBuilder();
+            ms.stream().forEach(
+                    m -> array.add(
+                            Json.createObjectBuilder()
+                            .add("user", m)
+                            .build()
+                    )
+            );
+            session.getAsyncRemote().sendObject(
+                    Json.createObjectBuilder().add("users", array).build().toString());
+        });
 
         logger.info("Socket Connected: " + session);
     }
@@ -100,20 +135,56 @@ public class ChatWebSocket
     public void onWebSocketText(String jsonMessage, Session session)
     {
         JsonObject jsonObject = Json.createReader(new StringReader(jsonMessage)).readObject();
+        String messageType = jsonObject.getString("type");
 
+        if (LoginMessageDto.TYPE.equals(messageType)) {
+            LoginMessageDto loginMessage = this.createLoginMessageDto(jsonObject);
+            logger.info("Received LOGIN message: " + loginMessage);
+            sessions.put(loginMessage.getNickName(), session);
+            login.say(loginMessage);
+        } else if (ChatMessageDto.TYPE.equals(messageType)) {
+            ChatMessageDto message = this.createChatMessageDto(jsonObject);
+            logger.info("Received public chat message: " + message);
+            // chat.say(message);
+        }
+//        else if (PrivateChatMessageDto.TYPE.equals(messageType)) {
+//            PrivateChatMessageDto privateMessage = this.createPrivateChatMessage(jsonObject);
+//            logger.info("Received private chat message: " + privateMessage);
+//            chat.privateSay(privateMessage);
+//        }
+    }
+
+    private ChatMessageDto createChatMessageDto(JsonObject jsonObject)
+    {
         ChatMessageDto message = new ChatMessageDto();
         message.setSender(jsonObject.getString("sender"));
         message.setMessage(jsonObject.getString("message"));
-
-        logger.info("Received TEXT message: " + message);
-        chat.say(message);
+        return message;
     }
 
+    private LoginMessageDto createLoginMessageDto(JsonObject jsonObject)
+    {
+        LoginMessageDto message = new LoginMessageDto();
+        message.setNickName(jsonObject.getString("nickName"));
+        return message;
+    }
+
+//    private PrivateChatMessageDto createPrivateChatMessage(JsonObject jsonObject)
+//    {
+//        PrivateChatMessageDto message = new PrivateChatMessageDto();
+//        message.setSender(jsonObject.getString("sender"));
+//        message.setTarget(jsonObject.getString("target"));
+//        message.setMessage(jsonObject.getString("message"));
+//        return message;
+//    }
+
     @OnClose
-    public void onWebSocketClose(CloseReason reason)
+    public void onWebSocketClose(Session session, CloseReason reason)
     {
         logger.info("Socket Closed: " + reason);
-        chat.leave(observer);
+        sessions.remove(session);
+        login.leave(loginObserver);
+        // chat.leave(observer);
     }
 
     @OnError
