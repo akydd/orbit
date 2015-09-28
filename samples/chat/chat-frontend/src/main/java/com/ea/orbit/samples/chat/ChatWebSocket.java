@@ -165,7 +165,7 @@ public class ChatWebSocket
     private LoginMessageDto createLoginMessageDto(JsonObject jsonObject)
     {
         LoginMessageDto message = new LoginMessageDto();
-        message.setNickName(jsonObject.getString("nickName"));
+        message.setNickName(jsonObject.getString("nickname"));
         return message;
     }
 

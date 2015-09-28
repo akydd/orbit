@@ -72,38 +72,54 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var recv = JSON.parse(evt.data);
             // todo: escape?
             if(recv.user || recv.message) {
-                var msg = recv;
-				var dateString = "";
-				var date = new Date(msg.received);
-				if( !isNaN(date.getTime()) )
-				{
-					dateString = date.toLocaleString();
-				}
+                showMessage(recv);
+            } else if (recv.history) {
+                showHistory(recv);
+            } else if (recv.users) {
+                showUsers(recv);
+            } else {
+                console.log("unhandled message type:" + JSON.stringify(recv));
+            }
+            var sHeight = $('.panel-body')[0].scrollHeight;
+            $('.panel-body').scrollTop(sHeight);
+        }
+
+        function showMessage(recv) {
+            var msg = recv;
+            var dateString = "";
+            var date = new Date(msg.received);
+            if( !isNaN(date.getTime()) )
+            {
+                dateString = date.toLocaleString();
+            }
+            var $messageLine = $(
+                    '<tr><td class="date">' + dateString
+                    + '</td><td class="user">' + msg.nickName
+                    + '</td><td class="message">' + msg.message
+                    + '</td></tr>');
+            $chatWindow.append($messageLine);
+        }
+
+        function showHistory(recv) {
+            $chatWindow.empty();
+            for(var i=0; i<recv.history.length; i++) {
+                var msg = recv.history[i];
+                var date = new Date(msg.received);
+                if( !isNaN(date.getTime()) )
+                {
+                    dateString = date.toLocaleString();
+                }
                 var $messageLine = $(
                         '<tr><td class="date">' + dateString
                         + '</td><td class="user">' + msg.nickName
                         + '</td><td class="message">' + msg.message
                         + '</td></tr>');
                 $chatWindow.append($messageLine);
-            } else if (recv.history) {
-                $chatWindow.empty();
-                for(var i=0; i<recv.history.length; i++) {
-                    var msg = recv.history[i];
-					var date = new Date(msg.received);
-					if( !isNaN(date.getTime()) )
-					{
-						dateString = date.toLocaleString();
-					}
-                    var $messageLine = $(
-                            '<tr><td class="date">' + dateString
-                            + '</td><td class="user">' + msg.nickName
-                            + '</td><td class="message">' + msg.message
-                            + '</td></tr>');
-                    $chatWindow.append($messageLine);
-                }
             }
-            var sHeight = $('.panel-body')[0].scrollHeight;
-            $('.panel-body').scrollTop(sHeight);
+        }
+
+        function showUsers(recv) {
+            console.log(recv);
         }
 
         function sendMessage() {
@@ -127,7 +143,13 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 "type": "loginMessage",
                 "nickname": $nickName.val()
             };
-            wsocket.send(JSON.stringify(msg));
+            if(!wsocket) {
+                pendingMessages.push(msg);
+                connectToServer();
+            }
+            else {
+                wsocket.send(JSON.stringify(msg));
+            }
         }
 
         function connectToServer() {
@@ -140,8 +162,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
 
         function onOpen() {
-            sendLogin();
-
             if(pendingMessages.length > 0) {
                 var messages = pendingMessages;
                 pendingMessages = [];
@@ -181,7 +201,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             $('#signIn').click(function (evt) {
                 evt.preventDefault();
-                connectToServer();
+                sendLogin();
                 $('.chat-container h2').text('Chat # ' + $nickName.val() + "@" + room);
                 $('.signin-form').hide();
                 $('.users').show();
