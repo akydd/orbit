@@ -78,6 +78,16 @@ public class ChatWebSocket
                 session.getAsyncRemote().sendObject(jsonObject.toString());
                 return Task.done();
             }
+
+            public Task<Void> receiveMessage(final LogoutMessageDto message)
+            {
+                JsonObject jsonObject = Json.createObjectBuilder()
+                        .add("logout", message.getNickName())
+                        .build();
+
+                session.getAsyncRemote().sendObject(jsonObject.toString());
+                return Task.done();
+            }
         };
         login.join(loginObserver);
 
@@ -141,11 +151,11 @@ public class ChatWebSocket
             LoginMessageDto loginMessage = this.createLoginMessageDto(jsonObject);
             logger.info("Received LOGIN message: " + loginMessage);
             sessions.put(loginMessage.getNickName(), session);
-            login.say(loginMessage);
+            login.addUser(loginMessage);
         } else if (ChatMessageDto.TYPE.equals(messageType)) {
             ChatMessageDto message = this.createChatMessageDto(jsonObject);
             logger.info("Received public chat message: " + message);
-            // chat.say(message);
+            // chat.addUser(message);
         }
 //        else if (PrivateChatMessageDto.TYPE.equals(messageType)) {
 //            PrivateChatMessageDto privateMessage = this.createPrivateChatMessage(jsonObject);

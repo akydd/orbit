@@ -11,7 +11,10 @@ import java.util.List;
 public interface Login extends Actor
 {
     @OneWay
-    Task<Void> say(LoginMessageDto message);
+    Task<Void> addUser(LoginMessageDto message);
+
+    @OneWay
+    Task<Void> removeUser(LogoutMessageDto message);
 
     Task<Boolean> join(LoginObserver observer);
 

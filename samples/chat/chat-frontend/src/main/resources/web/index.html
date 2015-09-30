@@ -33,25 +33,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="css/bootstrap.css" rel="stylesheet">
     <script src="js/jquery-1.11.2.min.js"></script>
+    <script src="js/underscore-min.js"></script>
     <style type="text/css">
-
-        .panel-body {
+        .messages {
             overflow-y: scroll;
-            height: 250px;
+            height: 300px;
         }
-
-        .message {
-            width: 100%;
-        }
-
-        .user {
-
-        }
-
-        .date {
-
-        }
-
     </style>
 
     <script>
@@ -77,6 +64,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 showHistory(recv);
             } else if (recv.users) {
                 showUsers(recv);
+            } else if (recv.login) {
+                addUser(recv);
+            } else if (recv.logout) {
+                removeUser(recv);
             } else {
                 console.log("unhandled message type:" + JSON.stringify(recv));
             }
@@ -102,8 +93,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         function showHistory(recv) {
             $chatWindow.empty();
-            for(var i=0; i<recv.history.length; i++) {
-                var msg = recv.history[i];
+            _.each(recv.history, function(msg) {
                 var date = new Date(msg.received);
                 if( !isNaN(date.getTime()) )
                 {
@@ -115,11 +105,23 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         + '</td><td class="message">' + msg.message
                         + '</td></tr>');
                 $chatWindow.append($messageLine);
-            }
+            });
         }
 
         function showUsers(recv) {
-            console.log(recv);
+            _.each(recv.users, function(userObject) {
+                var userHtml = "<tr id='" + userObject.user + "'><td>" + userObject.user + "</td></tr>";
+                $('#users').append(userHtml);
+            });
+        }
+
+        function addUser(recv) {
+            var userHtml = "<tr id='" + recv.login + "'><td>" + recv.login + "</td></tr>";
+            $('#users').append(userHtml);
+        }
+
+        function removeUser(recv) {
+            $('#' + recv.user).remove();
         }
 
         function sendMessage() {
@@ -187,9 +189,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             $nickName = $('#nickname');
             $message = $('#message');
             $chatWindow = $('#response');
-            $('.users').hide();
-            $('.chat-container').hide();
-            $('.chat-rooms').hide();
+            $('.main').hide();
             $nickName.focus();
 
             $('#enterRoom').click(function (evt) {
@@ -202,9 +202,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             $('#signIn').click(function (evt) {
                 evt.preventDefault();
                 sendLogin();
-                $('.chat-container h2').text('Chat # ' + $nickName.val() + "@" + room);
+
                 $('.signin-form').hide();
-                $('.users').show();
+
+                $('.main').show();
+
+//                $('.chat-container h2').text('Chat # ' + $nickName.val());
                 $message.focus();
             });
 
@@ -237,57 +240,68 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     </form>
 </div>
 
-<div class="container users">
-    <div class="panel-body">
-        <table id="users" class="table">
-        </table>
+<div class="main container">
+    <h2></h2>
+
+    <div class="row">
+        <div class="col-md-2">
+            <div>
+                <h3>People</h3>
+                <table class="table">
+                    <tbody id="users">
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <h3>Rooms</h3>
+                <select size="1" id="chatroom" class="form-control">
+                    <option>mass effect</option>
+                    <option>dragon age</option>
+                    <option>battlefield</option>
+                    <option>fifa</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-md-8 chat-window">
+            <div class="panel-body messages">
+                <table>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="footer">
+                <legend>Enter your message..</legend>
+                <div class="controls">
+                    <input type="text" class="form-control" placeholder="message..." id="message"
+                           style="height:6em; margin-bottom: 0.5ex"/>
+                    <input type="submit" class="btn btn-large btn-block btn-primary"
+                           value="Send message"/>
+                    <button class="btn btn-large btn-block" type="button" id="leave-room">Leave</button>
+                </div>
+            </footer>
+        </div>
+
+        <div class="col-md-2">
+        </div>
     </div>
 </div>
 
-<div class="container chat-rooms">
-    <form role="form">
-        <h2>Chat rooms</h2>
-        <div class="form-group" >
-            <label for="chatroom">Chatroom</label>
-            <select size="1" id="chatroom" class="form-control">
-                <option>mass effect</option>
-                <option>dragon age</option>
-                <option>battlefield</option>
-                <option>fifa</option>
-            </select>
-        </div>
+<!--<div class="container chat-container">-->
+    <!--<form id="do-chat">-->
+        <!--<h2 class="alert alert-success"></h2>-->
 
-        <div class="form-group">
-            <button class="btn btn-primary" type="submit" id="enterRoom">Enter Room</button>
-        </div>
-    </form>
-</div>
+        <!--<div class="panel-body">-->
+            <!--<table id="response" class="table">-->
+            <!--</table>-->
+        <!--</div>-->
 
-<div class="container chat-container">
-    <form id="do-chat">
-        <h2 class="alert alert-success"></h2>
-
-        <div class="panel-body">
-            <table id="response" class="table">
-            </table>
-        </div>
-
-        <div class="panel-body">
-            <table id="private" class="table">
-            </table>
-        </div>
-
-        <fieldset>
-            <legend>Enter your message..</legend>
-            <div class="controls">
-                <input type="text" class="form-control" placeholder="message..." id="message"
-                       style="height:6em; margin-bottom: 0.5ex"/>
-                <input type="submit" class="btn btn-large btn-block btn-primary"
-                       value="Send message"/>
-                <button class="btn btn-large btn-block" type="button" id="leave-room">Leave</button>
-            </div>
-        </fieldset>
-    </form>
-</div>
+        <!--<div class="panel-body">-->
+            <!--<table id="private" class="table">-->
+            <!--</table>-->
+        <!--</div>-->
+    <!--</form>-->
+<!--</div>-->
 </body>
 </html>

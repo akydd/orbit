@@ -47,10 +47,20 @@ public class LoginActor extends AbstractActor<LoginActor.State> implements Login
         LinkedList<String> users = new LinkedList<>();
     }
 
+    // TODO: prevent multiple logins of users
     @Override
-    public Task<Void> say(final LoginMessageDto message)
+    public Task<Void> addUser(final LoginMessageDto message)
     {
         state().users.add(message.getNickName());
+        state().observers.notifyObservers(o -> o.receiveMessage(message));
+        writeState().join();
+        return Task.done();
+    }
+
+    @Override
+    public Task<Void> removeUser(final LogoutMessageDto message)
+    {
+        state().users.remove(message.getNickName());
         state().observers.notifyObservers(o -> o.receiveMessage(message));
         writeState().join();
         return Task.done();
