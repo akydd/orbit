@@ -55,7 +55,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         var serviceLocation = (parser.protocol=="https" ? "wss" : "ws") +"://"+parser.host+"/sample/chat";
 
         function onMessageReceived(evt) {
-            //console.log("received: " + evt.data);
+            console.log("received: " + evt.data);
             var recv = JSON.parse(evt.data);
             // todo: escape?
             if(recv.user || recv.message) {
@@ -71,8 +71,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             } else {
                 console.log("unhandled message type:" + JSON.stringify(recv));
             }
-            var sHeight = $('.panel-body')[0].scrollHeight;
-            $('.panel-body').scrollTop(sHeight);
+//            var sHeight = $('.panel-body')[0].scrollHeight;
+//            $('.panel-body').scrollTop(sHeight);
         }
 
         function showMessage(recv) {
@@ -121,7 +121,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
 
         function removeUser(recv) {
-            $('#' + recv.user).remove();
+            $('#' + recv.logout).remove();
         }
 
         function sendMessage() {
@@ -154,6 +154,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
         }
 
+        function sendLogout() {
+            var msg = {
+                "type": "logoutMessage",
+                "nickname": $nickName.val()
+            };
+            wsocket.send(JSON.stringify(msg));
+        }
+
         function connectToServer() {
             console.log("connecting to server");
             // room = $('#chatroom option:selected').val();
@@ -175,14 +183,14 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         function onClose() {
             wsocket = null;
-        }
-
-        function leaveRoom() {
-            wsocket.close();
-            $chatWindow.empty();
-            $('.chat-container').hide();
+            $('.main').hide();
+            $('#users').html("");
             $('.signin-form').show();
             $nickName.focus();
+        }
+
+        function signOut() {
+            sendLogout();
         }
 
         $(document).ready(function () {
@@ -203,8 +211,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 evt.preventDefault();
                 sendLogin();
 
+                // TODO: do this on login success
                 $('.signin-form').hide();
-
                 $('.main').show();
 
 //                $('.chat-container h2').text('Chat # ' + $nickName.val());
@@ -216,8 +224,8 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 sendMessage()
             });
 
-            $('#leave-room').click(function () {
-                leaveRoom();
+            $('#sign-out').click(function () {
+                signOut();
             });
         });
     </script>
@@ -247,7 +255,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <div class="col-md-2">
             <div>
                 <h3>People</h3>
-                <table class="table">
+                <table id="users-table" class="table">
                     <tbody id="users">
                     </tbody>
                 </table>
@@ -278,7 +286,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                            style="height:6em; margin-bottom: 0.5ex"/>
                     <input type="submit" class="btn btn-large btn-block btn-primary"
                            value="Send message"/>
-                    <button class="btn btn-large btn-block" type="button" id="leave-room">Leave</button>
+                    <button class="btn btn-large btn-block" type="button" id="sign-out">Sign out</button>
                 </div>
             </footer>
         </div>

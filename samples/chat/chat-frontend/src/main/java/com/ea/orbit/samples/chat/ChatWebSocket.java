@@ -43,6 +43,7 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
+import java.io.IOException;
 import java.io.StringReader;
 //import java.time.ZoneId;
 //import java.time.ZonedDateTime;
@@ -147,11 +148,26 @@ public class ChatWebSocket
         JsonObject jsonObject = Json.createReader(new StringReader(jsonMessage)).readObject();
         String messageType = jsonObject.getString("type");
 
-        if (LoginMessageDto.TYPE.equals(messageType)) {
+        if (LoginMessageDto.TYPE.equals(messageType))
+        {
             LoginMessageDto loginMessage = this.createLoginMessageDto(jsonObject);
             logger.info("Received LOGIN message: " + loginMessage);
             sessions.put(loginMessage.getNickName(), session);
             login.addUser(loginMessage);
+        } else if (LogoutMessageDto.TYPE.equals(messageType)) {
+            LogoutMessageDto logoutMessage = this.createLogoutMessageDto(jsonObject);
+            logger.info("Received LOGOUT message:" + logoutMessage);
+            login.removeUser(logoutMessage);
+            sessions.remove(logoutMessage.getNickName());
+            login.leave(loginObserver);
+            try
+            {
+                session.close();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
         } else if (ChatMessageDto.TYPE.equals(messageType)) {
             ChatMessageDto message = this.createChatMessageDto(jsonObject);
             logger.info("Received public chat message: " + message);
@@ -175,6 +191,13 @@ public class ChatWebSocket
     private LoginMessageDto createLoginMessageDto(JsonObject jsonObject)
     {
         LoginMessageDto message = new LoginMessageDto();
+        message.setNickName(jsonObject.getString("nickname"));
+        return message;
+    }
+
+    private LogoutMessageDto createLogoutMessageDto(JsonObject jsonObject)
+    {
+        LogoutMessageDto message = new LogoutMessageDto();
         message.setNickName(jsonObject.getString("nickname"));
         return message;
     }
