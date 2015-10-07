@@ -8,7 +8,7 @@ import com.ea.orbit.concurrent.Task;
 import java.util.List;
 
 @NoIdentity
-public interface Login extends Actor
+public interface ChatSessionManager extends Actor
 {
     @OneWay
     Task<Void> addUser(LoginMessageDto message);
@@ -16,9 +16,9 @@ public interface Login extends Actor
     @OneWay
     Task<Void> removeUser(LogoutMessageDto message);
 
-    Task<Boolean> join(LoginObserver observer);
+    Task<Boolean> join(ChatSessionObserver observer);
 
-    Task<Boolean> leave(LoginObserver observer);
+    Task<Boolean> leave(ChatSessionObserver observer);
 
     Task<List<String>> getUsers();
 }

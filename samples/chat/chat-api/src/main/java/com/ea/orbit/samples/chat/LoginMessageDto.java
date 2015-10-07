@@ -10,13 +10,25 @@ public class LoginMessageDto implements Serializable
 
     private String nickName;
 
+    private String password;
+
     public String getNickName()
     {
         return nickName;
     }
 
+    public String getPassword()
+    {
+        return password;
+    }
+
     public void setNickName(final String nickName)
     {
         this.nickName = nickName;
+    }
+
+    public void setPassword(final String password)
+    {
+        this.password = password;
     }
 }

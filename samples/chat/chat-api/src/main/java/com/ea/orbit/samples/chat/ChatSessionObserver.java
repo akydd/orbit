@@ -5,11 +5,11 @@ import com.ea.orbit.actors.ActorObserver;
 import com.ea.orbit.actors.annotation.OneWay;
 import com.ea.orbit.concurrent.Task;
 
-public interface LoginObserver extends ActorObserver
+public interface ChatSessionObserver extends ActorObserver
 {
     @OneWay
-    Task<Void> receiveMessage(LoginMessageDto message);
+    Task<Void> onLogin(LoginMessageDto message);
 
     @OneWay
-    Task<Void> receiveMessage(LogoutMessageDto message);
+    Task<Void> onLogout(LogoutMessageDto message);
 }

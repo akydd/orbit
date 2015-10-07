@@ -59,18 +59,19 @@ public class ChatWebSocket
 
 //    private Chat chat;
 //    private ChatObserver observer;
-    private Login login;
-    private LoginObserver loginObserver;
+    private ChatSessionManager chatSessionManager;
+    private ChatSessionObserver chatSessionObserver;
+
     private Map<String, Session> sessions = new HashMap<>();
 
     @OnOpen
     public void onWebSocketConnect(Session session)
     {
-        login = Actor.getReference(Login.class);
-        loginObserver = new LoginObserver()
+        chatSessionManager = Actor.getReference(ChatSessionManager.class);
+        chatSessionObserver = new ChatSessionObserver()
         {
             @Override
-            public Task<Void> receiveMessage(final LoginMessageDto message)
+            public Task<Void> onLogin(final LoginMessageDto message)
             {
                 JsonObject jsonObject = Json.createObjectBuilder()
                         .add("login", message.getNickName())
@@ -80,7 +81,7 @@ public class ChatWebSocket
                 return Task.done();
             }
 
-            public Task<Void> receiveMessage(final LogoutMessageDto message)
+            public Task<Void> onLogout(final LogoutMessageDto message)
             {
                 JsonObject jsonObject = Json.createObjectBuilder()
                         .add("logout", message.getNickName())
@@ -90,13 +91,13 @@ public class ChatWebSocket
                 return Task.done();
             }
         };
-        login.join(loginObserver);
+        chatSessionManager.join(chatSessionObserver);
 
 //        chat = Actor.getReference(Chat.class, session.getPathParameters().get("chatName"));
 //        observer = new ChatObserver()
 //        {
 //            @Override
-//            public Task<Void> receiveMessage(final ChatMessageDto message)
+//            public Task<Void> onLogin(final ChatMessageDto message)
 //            {
 //                JsonObject jsonObject = Json.createObjectBuilder()
 //                        .add("message", message.getMessage())
@@ -126,7 +127,7 @@ public class ChatWebSocket
 //                }
 //        );
 
-        login.getUsers().thenAccept(ms -> {
+        chatSessionManager.getUsers().thenAccept(ms -> {
             JsonArrayBuilder array = Json.createArrayBuilder();
             ms.stream().forEach(
                     m -> array.add(
@@ -148,36 +149,49 @@ public class ChatWebSocket
         JsonObject jsonObject = Json.createReader(new StringReader(jsonMessage)).readObject();
         String messageType = jsonObject.getString("type");
 
-        if (LoginMessageDto.TYPE.equals(messageType))
-        {
-            LoginMessageDto loginMessage = this.createLoginMessageDto(jsonObject);
-            logger.info("Received LOGIN message: " + loginMessage);
-            sessions.put(loginMessage.getNickName(), session);
-            login.addUser(loginMessage);
+        if (LoginMessageDto.TYPE.equals(messageType)) {
+            this.handleLogin(jsonObject, session);
         } else if (LogoutMessageDto.TYPE.equals(messageType)) {
-            LogoutMessageDto logoutMessage = this.createLogoutMessageDto(jsonObject);
-            logger.info("Received LOGOUT message:" + logoutMessage);
-            login.removeUser(logoutMessage);
-            sessions.remove(logoutMessage.getNickName());
-            login.leave(loginObserver);
-            try
-            {
-                session.close();
-            }
-            catch (IOException e)
-            {
-                e.printStackTrace();
-            }
+            this.handleLogout(jsonObject, session);
         } else if (ChatMessageDto.TYPE.equals(messageType)) {
-            ChatMessageDto message = this.createChatMessageDto(jsonObject);
-            logger.info("Received public chat message: " + message);
-            // chat.addUser(message);
+            this.handleChat(jsonObject, session);
         }
 //        else if (PrivateChatMessageDto.TYPE.equals(messageType)) {
 //            PrivateChatMessageDto privateMessage = this.createPrivateChatMessage(jsonObject);
 //            logger.info("Received private chat message: " + privateMessage);
 //            chat.privateSay(privateMessage);
 //        }
+    }
+
+    private void handleChat(JsonObject jsonObject, Session session)
+    {
+        ChatMessageDto message = this.createChatMessageDto(jsonObject);
+        logger.info("Received public chat message: " + message);
+        // chat.addUser(message);
+    }
+    private void handleLogin(JsonObject jsonObject, Session session)
+    {
+        LoginMessageDto loginMessage = this.createLoginMessageDto(jsonObject);
+        logger.info("Received LOGIN message: " + loginMessage);
+        sessions.put(loginMessage.getNickName(), session);
+        chatSessionManager.addUser(loginMessage);
+    }
+
+    private void handleLogout(JsonObject jsonObject, Session session)
+    {
+        LogoutMessageDto logoutMessage = this.createLogoutMessageDto(jsonObject);
+        logger.info("Received LOGOUT message:" + logoutMessage);
+        chatSessionManager.removeUser(logoutMessage);
+        sessions.remove(logoutMessage.getNickName());
+        chatSessionManager.leave(chatSessionObserver);
+        try
+        {
+            session.close();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     private ChatMessageDto createChatMessageDto(JsonObject jsonObject)
@@ -216,7 +230,7 @@ public class ChatWebSocket
     {
         logger.info("Socket Closed: " + reason);
         sessions.remove(session);
-        login.leave(loginObserver);
+        chatSessionManager.leave(chatSessionObserver);
         // chat.leave(observer);
     }
 
